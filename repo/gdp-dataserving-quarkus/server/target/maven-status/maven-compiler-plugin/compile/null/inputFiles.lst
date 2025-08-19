@@ -3,6 +3,7 @@
 /Users/bl44001/repo/gdp-dataserving-quarkus/server/src/main/java/com/sc/gdp/common/s3/S3FileInfo.java
 /Users/bl44001/repo/gdp-dataserving-quarkus/server/src/main/java/com/sc/gdp/dataserving/service/DataService.java
 /Users/bl44001/repo/gdp-dataserving-quarkus/server/src/main/java/com/sc/gdp/dataserving/model/DataItem.java
+/Users/bl44001/repo/gdp-dataserving-quarkus/server/src/main/java/com/sc/gdp/dataserving/rest/S3Resource.java
 /Users/bl44001/repo/gdp-dataserving-quarkus/server/src/main/java/com/sc/gdp/dataserving/config/DataSourceConfig.java
 /Users/bl44001/repo/gdp-dataserving-quarkus/server/src/main/java/com/sc/gdp/dataserving/graphql/DataGraphQLApi.java
 /Users/bl44001/repo/gdp-dataserving-quarkus/server/src/main/java/com/sc/gdp/common/s3/S3Config.java

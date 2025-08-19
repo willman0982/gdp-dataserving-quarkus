@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation updates for Java 17 migration
 - Health check and metrics endpoints documentation
 - Quarkus Dev UI for additional development tools and extension management
+- S3 presigned URL REST API endpoints for secure file upload and download operations
+  - `GET /api/s3/presigned-url/download` - Generate download presigned URLs
+  - `POST /api/s3/presigned-url/upload` - Generate upload presigned URLs
 
 ### Changed
 - **BREAKING**: Upgraded Java runtime from Java 11 to Java 17 (OpenJDK 17.0.16)

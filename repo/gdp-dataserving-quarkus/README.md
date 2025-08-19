@@ -131,11 +131,13 @@ mvn clean package
 
 The server provides the following REST endpoints (available at http://localhost:8082):
 
-- `GET /data` - Get all data items
-- `GET /data/{id}` - Get data item by ID  
-- `POST /data` - Create new data item
-- `PUT /data/{id}` - Update data item
-- `DELETE /data/{id}` - Delete data item
+- `GET /api/data` - Get all data items
+- `GET /api/data/{id}` - Get data item by ID  
+- `POST /api/data` - Create new data item
+- `PUT /api/data/{id}` - Update data item
+- `DELETE /api/data/{id}` - Delete data item
+- `GET /api/s3/presigned-url/download?key={s3Key}` - Generate S3 download presigned URL
+- `POST /api/s3/presigned-url/upload` - Generate S3 upload presigned URL
 - `GET /q/health` - Health check endpoint
 - `GET /q/metrics` - Metrics endpoint
 - `GET /q/dev-ui` - Quarkus Dev UI (development mode only)
@@ -209,6 +211,51 @@ mutation {
   }
 }
 ```
+
+### S3 API
+
+The S3 API provides endpoints for generating presigned URLs for secure file upload and download operations.
+
+#### Generate Download Presigned URL
+
+```bash
+GET /api/s3/presigned-url/download?key=path/to/file.jpg
+```
+
+Response:
+```json
+{
+  "url": "https://s3.amazonaws.com/bucket/path/to/file.jpg?X-Amz-Algorithm=...",
+  "operation": "download",
+  "key": "path/to/file.jpg",
+  "expiresInMinutes": 60
+}
+```
+
+#### Generate Upload Presigned URL
+
+```bash
+POST /api/s3/presigned-url/upload
+Content-Type: application/json
+
+{
+  "key": "uploads/document.pdf",
+  "contentType": "application/pdf"
+}
+```
+
+Response:
+```json
+{
+  "url": "https://s3.amazonaws.com/bucket/uploads/document.pdf?X-Amz-Algorithm=...",
+  "operation": "upload",
+  "key": "uploads/document.pdf",
+  "contentType": "application/pdf",
+  "expiresInMinutes": 60
+}
+```
+
+**Note**: Both endpoints require authentication and appropriate user roles (`user` or `admin`).
 
 ### Client Demo API
 

@@ -67,6 +67,19 @@ quarkus:
       "com.sc.gdp": DEBUG
       "io.quarkus.oidc": DEBUG
 
+# S3 Configuration
+s3:
+  endpoint-url: ${S3_ENDPOINT_URL:http://localhost:9000}
+  access-key: ${S3_ACCESS_KEY:minioadmin}
+  secret-key: ${S3_SECRET_KEY:minioadmin}
+  bucket-name: ${S3_BUCKET_NAME:gdp-dataserving}
+  region: ${S3_REGION:us-east-1}
+  path-style-access: ${S3_PATH_STYLE_ACCESS:true}
+  signed-url-duration-minutes: ${S3_SIGNED_URL_DURATION_MINUTES:60}
+  connection-timeout-ms: ${S3_CONNECTION_TIMEOUT_MS:30000}
+  socket-timeout-ms: ${S3_SOCKET_TIMEOUT_MS:30000}
+  max-retry-attempts: ${S3_MAX_RETRY_ATTEMPTS:3}
+
 # Development Profile
 "%dev":
   quarkus:
