@@ -52,7 +52,7 @@ gdp-dataserving-quarkus/
 
 ## Configuration
 
-### Server Configuration (server/src/main/resources/application.yml)
+### Server Configuration (server/src/main/resources/application.properties)
 
 ```yaml
 quarkus:
@@ -69,7 +69,7 @@ quarkus:
       secret: ${OIDC_CLIENT_SECRET:secret}
 ```
 
-### Client Configuration (client/src/main/resources/application.yml)
+### Client Configuration (client/src/main/resources/application.properties)
 
 ```yaml
 quarkus:

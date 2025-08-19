@@ -26,7 +26,7 @@ A comprehensive S3 library for handling S3a protocol operations on Isilon storag
 
 ## Configuration
 
-Add the following configuration to your `application.yml`:
+Add the following configuration to your `application.properties`:
 
 ```yaml
 s3:
