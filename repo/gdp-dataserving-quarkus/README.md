@@ -337,7 +337,7 @@ All S3 tests use Mockito for mocking AWS SDK dependencies, ensuring tests run wi
 
 The project maintains high test coverage across all modules:
 
-- **Total S3 Tests**: 35 tests (26 S3ServiceTest + 9 S3ResourceTest)
+- **Total S3 Tests**: 65 tests (26 S3ServiceTest + 16 S3ResourceTest + 23 S3PathParserTest)
 - **Test Success Rate**: 100% (all tests passing)
 - **Mock Strategy**: Comprehensive mocking of AWS SDK components
 - **Error Scenarios**: Extensive testing of exception handling and edge cases

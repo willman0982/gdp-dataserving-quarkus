@@ -15,19 +15,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - S3 presigned URL REST API endpoints for secure file upload and download operations
   - `GET /api/s3/presigned-url/download` - Generate download presigned URLs
   - `POST /api/s3/presigned-url/upload` - Generate upload presigned URLs
-- Comprehensive S3 testing suite with 35 unit tests
+- Comprehensive S3 testing suite with 65 unit tests
   - S3ServiceTest: 26 tests covering all S3Service backend operations
-  - S3ResourceTest: 9 tests covering S3Resource REST endpoints
+  - S3ResourceTest: 16 tests covering S3Resource REST endpoints
+  - S3PathParserTest: 23 tests covering S3 path parsing functionality
   - Complete test coverage for file operations, presigned URLs, error handling
   - Mockito-based testing without requiring actual AWS resources
 
 ### Changed
 - **BREAKING**: Upgraded Java runtime from Java 11 to Java 17 (OpenJDK 17.0.16)
 - **BREAKING**: Updated server port from 8080 to 8082 to avoid conflicts
+- **BREAKING**: Updated default S3 bucket from 'default' to 'gdp' across all services
 - Updated client port from 8081 to 8080 for consistency
 - Updated Maven compiler source and target to Java 17
 - Enhanced README.md with current technology stack and configuration
 - Updated client configuration to point to correct server port (8082)
+- Updated S3 configuration to use 'gdp' as the primary bucket name
+- Updated all S3 service classes to dynamically retrieve default bucket from configuration
+- Updated test suites to use 'gdp' bucket instead of hardcoded 'default' references
 
 ### Technical Details
 - Java version: 17 (OpenJDK 17.0.16)

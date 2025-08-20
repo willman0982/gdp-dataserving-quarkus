@@ -10,6 +10,8 @@ A comprehensive S3 library for handling S3a protocol operations on Isilon storag
 - **Signed URLs**: Generate pre-signed URLs for secure file access
 - **File Listing**: List files with optional prefix filtering
 - **Metadata Management**: Retrieve file metadata and check file existence
+- **Multi-Endpoint Support**: Configure multiple S3 endpoints with different credentials
+- **Flexible Path Formats**: Support for traditional bucket+key, S3 URIs (s3://, s3a://), and HTTPS URLs
 - **S3a Protocol Support**: Optimized for Isilon storage systems
 - **Configuration Management**: Type-safe configuration using Quarkus ConfigMapping
 - **Utility Functions**: File type detection, key validation, and formatting helpers
@@ -20,58 +22,47 @@ A comprehensive S3 library for handling S3a protocol operations on Isilon storag
 
 - **`S3Service`**: Main service class providing all S3 operations
 - **`S3Config`**: Configuration interface for S3 settings
+- **`S3PathParser`**: Utility class for parsing flexible S3 path formats
 - **`S3FileInfo`**: Data transfer object for file information
 - **`S3Utils`**: Utility class with helper methods
 - **`S3Exception`**: Custom exception for S3 operations
 
 ## Configuration
 
-### Single Bucket Configuration
+### Bucket Configuration
 
-Add the following configuration to your `application.properties`:
-
-```properties
-# Default S3 Configuration
-s3.endpoint-url=http://your-isilon-endpoint:9020
-s3.access-key=your-access-key
-s3.secret-key=your-secret-key
-s3.region=us-east-1
-s3.bucket-name=your-bucket-name
-s3.path-style-access=true
-s3.signed-url-duration-minutes=60
-s3.connection-timeout-ms=30000
-s3.socket-timeout-ms=30000
-s3.max-retry-attempts=3
-```
-
-### Multiple Bucket Configuration
-
-To configure multiple S3 buckets, use the pattern `s3.buckets.[bucket-id].[property]`:
+All S3 configuration is now bucket-based. Use the pattern `s3.buckets.[bucket-id].[property]`:
 
 ```properties
-# Default bucket configuration (required)
-s3.endpoint-url=http://localhost:9000
-s3.access-key=minioadmin
-s3.secret-key=minioadmin
-s3.bucket-name=gdp-dataserving
-s3.region=us-east-1
-s3.path-style-access=true
+# GDP bucket configuration (primary/default)
+s3.buckets.gdp.bucket-name=gdp
+s3.buckets.gdp.endpoint-url=http://localhost:9000
+s3.buckets.gdp.access-key=minioadmin
+s3.buckets.gdp.secret-key=minioadmin
+s3.buckets.gdp.region=us-east-1
+s3.buckets.gdp.path-style-access=true
+s3.buckets.gdp.signed-url-duration-minutes=60
+s3.buckets.gdp.connection-timeout-ms=30000
+s3.buckets.gdp.socket-timeout-ms=30000
+s3.buckets.gdp.max-retry-attempts=3
 
 # Reports bucket with different credentials
-s3.buckets.reports.name=gdp-reports
+s3.buckets.reports.bucket-name=gdp-reports
 s3.buckets.reports.access-key=reports-user
 s3.buckets.reports.secret-key=reports-password
+s3.buckets.reports.region=us-east-1
+s3.buckets.reports.path-style-access=true
 
 # Archives bucket on AWS S3
-s3.buckets.archives.name=gdp-archives
+s3.buckets.archives.bucket-name=gdp-archives
 s3.buckets.archives.endpoint-url=https://s3.amazonaws.com
 s3.buckets.archives.region=us-west-2
 s3.buckets.archives.access-key=AKIAIOSFODNN7EXAMPLE
 s3.buckets.archives.secret-key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 s3.buckets.archives.path-style-access=false
 
-# Backup bucket (inherits most settings from default)
-s3.buckets.backup.name=gdp-backup
+# Backup bucket (inherits most settings from gdp bucket)
+s3.buckets.backup.bucket-name=gdp-backup
 ```
 
 ### Configuration Properties
@@ -88,6 +79,70 @@ s3.buckets.backup.name=gdp-backup
 | `connection-timeout-ms` | Connection timeout | `30000` | No |
 | `socket-timeout-ms` | Socket timeout | `30000` | No |
 | `max-retry-attempts` | Maximum retry attempts | `3` | No |
+
+## Flexible Path Formats
+
+The library supports multiple path formats for specifying S3 objects, providing flexibility in how you reference files:
+
+### Supported Path Formats
+
+1. **Traditional Bucket + Key Format**
+   ```java
+   // Specify bucket ID and key separately
+   s3Service.downloadFile("reports", "documents/file.pdf", localPath);
+   ```
+
+2. **S3A URI Format** (Hadoop-style)
+   ```java
+   // Full S3A URI - bucket and key parsed automatically
+   s3Service.downloadFileByPath("s3a://mybucket/documents/file.pdf", localPath);
+   ```
+
+3. **S3 URI Format**
+   ```java
+   // Standard S3 URI - bucket and key parsed automatically
+   s3Service.downloadFileByPath("s3://mybucket/documents/file.pdf", localPath);
+   ```
+
+4. **HTTPS S3 URL Format**
+   ```java
+   // Full HTTPS URL - bucket and key extracted automatically
+   s3Service.downloadFileByPath("https://mybucket.s3.amazonaws.com/documents/file.pdf", localPath);
+   ```
+
+### Path Parsing Examples
+
+```java
+// Using S3PathParser directly
+S3PathParser.S3PathInfo pathInfo = S3PathParser.parsePath("s3a://mybucket/documents/file.pdf", "gdp");
+System.out.println("Bucket: " + pathInfo.getBucketId()); // "mybucket"
+System.out.println("Key: " + pathInfo.getKey());         // "documents/file.pdf"
+
+// Parse with explicit bucket and key
+S3PathParser.S3PathInfo info = S3PathParser.parseBucketAndKey("reports", "s3a://otherbucket/file.txt", "gdp");
+// If key contains S3 URI, it takes precedence over bucketId parameter
+System.out.println("Bucket: " + info.getBucketId()); // "otherbucket"
+System.out.println("Key: " + info.getKey());         // "file.txt"
+```
+
+### REST API Path Support
+
+The REST endpoints support flexible path formats:
+
+```bash
+# Traditional format
+curl -X GET "http://localhost:8082/s3/download/presigned?key=file.pdf&bucketId=reports"
+
+# Using S3A URI in path parameter
+curl -X POST "http://localhost:8082/s3/upload/presigned" \
+  -H "Content-Type: application/json" \
+  -d '{"path": "s3a://reports/documents/file.pdf", "contentType": "application/pdf"}'
+
+# Using S3 URI in path parameter
+curl -X POST "http://localhost:8082/s3/upload/presigned" \
+  -H "Content-Type: application/json" \
+  -d '{"path": "s3://archives/data/report.csv", "contentType": "text/csv"}'
+```
 
 ## Usage Examples
 
@@ -193,7 +248,7 @@ s3Service.copyFile("documents/report.pdf", "backup/report-backup.pdf");
 
 ## Multi-Bucket Usage
 
-When multiple buckets are configured, you can specify which bucket to use for operations by providing a bucket ID.
+When multiple buckets are configured, you can specify which bucket to use for operations by providing a bucket name.
 
 ### Multi-Bucket File Operations
 
@@ -223,7 +278,7 @@ URL downloadUrl = s3Service.generateDownloadSignedUrl("reports", "monthly/report
 // Generate upload URL for specific bucket
 URL uploadUrl = s3Service.generateUploadSignedUrl("archives", "2024/data.csv", "text/csv", Duration.ofMinutes(30));
 
-// Using default bucket (same as before)
+// Using default bucket (gdp)
 URL defaultUrl = s3Service.generateDownloadSignedUrl("documents/report.pdf");
 ```
 
@@ -248,16 +303,16 @@ The S3 REST endpoints support bucket selection:
 # List available buckets
 curl -X GET "http://localhost:8082/s3/buckets"
 
-# Generate download URL for default bucket
+# Generate download URL for default bucket (gdp)
 curl -X GET "http://localhost:8082/s3/download/presigned?key=file.pdf"
 
 # Generate download URL for specific bucket
-curl -X GET "http://localhost:8082/s3/download/presigned?key=file.pdf&bucketId=reports"
+curl -X GET "http://localhost:8082/s3/download/presigned?key=file.pdf&bucketName=reports"
 
 # Generate upload URL for specific bucket
 curl -X POST "http://localhost:8082/s3/upload/presigned" \
   -H "Content-Type: application/json" \
-  -d '{"key": "new-file.pdf", "contentType": "application/pdf", "bucketId": "archives"}'
+  -d '{"key": "new-file.pdf", "contentType": "application/pdf", "bucketName": "archives"}'
 ```
 
 ### Utility Functions
@@ -393,7 +448,15 @@ quarkus:
 
 ## Version History
 
-### v1.1.0 (Current)
+### v1.2.0 (Current)
+- **NEW**: Flexible path format support (S3 URIs, S3A URIs, HTTPS URLs)
+- **NEW**: S3PathParser utility for parsing various S3 path formats
+- **ENHANCED**: REST API endpoints now accept path parameter for flexible formats
+- **ENHANCED**: Service methods support both traditional bucket+key and URI-based paths
+- **FIXED**: S3PathParser correctly handles edge cases and invalid paths
+- **IMPROVED**: Comprehensive test coverage for all path formats
+
+### v1.1.0
 - **Breaking Change**: Migrated from AWS SDK v2 to AWS SDK v1 (1.12.788)
 - Updated all API calls to use AWS SDK v1 patterns
 - Changed dependency from `software.amazon.awssdk:s3` to `com.amazonaws:aws-java-sdk-s3`
@@ -407,6 +470,29 @@ quarkus:
 - File management utilities
 
 ## Migration Notes
+
+### From v1.1.x to v1.2.x
+
+**New Features (Backward Compatible):**
+- All existing APIs remain unchanged and fully compatible
+- New flexible path format support is additive - use when beneficial
+- S3PathParser utility available for custom path parsing needs
+
+**Enhanced REST API:**
+- Existing query parameter format still supported
+- New `path` parameter in request body provides flexible format support
+- Choose the format that best fits your use case
+
+**Example Usage:**
+```java
+// Existing approach (still works)
+s3Service.downloadFile("reports", "file.pdf", localPath);
+
+// New flexible approach (optional)
+s3Service.downloadFileByPath("s3a://reports/file.pdf", localPath);
+```
+
+### From v1.0.x to v1.1.x
 
 If you're upgrading from a previous version that used AWS SDK v2, please note the following changes:
 
@@ -423,4 +509,7 @@ If you're upgrading from a previous version that used AWS SDK v2, please note th
 - File versioning support
 - Advanced retry strategies
 - Metrics and monitoring integration
+- Caching layer for frequently accessed files and metadata
+- Cross-region replication support
+- Enhanced security features and access controls
 - Migration path back to AWS SDK v2 when infrastructure supports it

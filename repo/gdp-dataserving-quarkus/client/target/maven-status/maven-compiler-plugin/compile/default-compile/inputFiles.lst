@@ -1,7 +1,0 @@
-/Users/bl44001/repo/gdp-dataserving-quarkus/client/src/main/java/com/sc/gdp/dataserving/client/service/DataClientService.java
-/Users/bl44001/repo/gdp-dataserving-quarkus/client/src/main/java/com/sc/gdp/dataserving/client/rest/DataRestClient.java
-/Users/bl44001/repo/gdp-dataserving-quarkus/client/src/main/java/com/sc/gdp/dataserving/client/rest/AuthenticationRequestFilter.java
-/Users/bl44001/repo/gdp-dataserving-quarkus/client/src/main/java/com/sc/gdp/dataserving/client/graphql/DataGraphQLClient.java
-/Users/bl44001/repo/gdp-dataserving-quarkus/client/src/main/java/com/sc/gdp/dataserving/client/model/DataItem.java
-/Users/bl44001/repo/gdp-dataserving-quarkus/client/src/main/java/com/sc/gdp/dataserving/client/model/DataStatus.java
-/Users/bl44001/repo/gdp-dataserving-quarkus/client/src/main/java/com/sc/gdp/dataserving/client/rest/ClientDemoResource.java

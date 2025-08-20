@@ -11,13 +11,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,32 +39,63 @@ public class S3ServiceTest {
     @Mock
     private S3Config mockS3Config;
 
+    @Mock
+    private S3Config.BucketConfig mockBucketConfig;
+
     private static final String TEST_BUCKET = "test-bucket";
     private static final String TEST_KEY = "test/file.txt";
-    private static final String TEST_BUCKET_ID = "test-bucket-id";
+    private static final String TEST_BUCKET_NAME = "test-bucket-name";
     private static final String TEST_CONTENT = "test content";
+    
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
-    void setUp() {
-        // Mock S3Config with lenient stubbing to avoid unnecessary stubbing errors
-        lenient().when(mockS3Config.bucketName()).thenReturn(TEST_BUCKET);
-        lenient().when(mockS3Config.endpointUrl()).thenReturn("http://localhost:9000");
-        lenient().when(mockS3Config.accessKey()).thenReturn("test-access-key");
-        lenient().when(mockS3Config.secretKey()).thenReturn("test-secret-key");
-        lenient().when(mockS3Config.region()).thenReturn("us-east-1");
-        lenient().when(mockS3Config.pathStyleAccess()).thenReturn(true);
+    void setUp() throws Exception {
+        // Mock S3Config with bucket-based configuration
+        lenient().when(mockBucketConfig.bucketName()).thenReturn(TEST_BUCKET);
+        lenient().when(mockBucketConfig.endpointUrl()).thenReturn(java.util.Optional.of("http://localhost:9000"));
+        lenient().when(mockBucketConfig.accessKey()).thenReturn(java.util.Optional.of("test-access-key"));
+        lenient().when(mockBucketConfig.secretKey()).thenReturn(java.util.Optional.of("test-secret-key"));
+        lenient().when(mockBucketConfig.region()).thenReturn("us-east-1");
+        lenient().when(mockBucketConfig.pathStyleAccess()).thenReturn(true);
+        lenient().when(mockBucketConfig.signedUrlDurationMinutes()).thenReturn(60);
+        lenient().when(mockBucketConfig.connectionTimeoutMs()).thenReturn(30000);
+        lenient().when(mockBucketConfig.socketTimeoutMs()).thenReturn(30000);
+        lenient().when(mockBucketConfig.maxRetryAttempts()).thenReturn(3);
+        
+        // Mock the buckets map to return the bucket config for all test bucket names
+        java.util.Map<String, S3Config.BucketConfig> bucketsMap = java.util.Map.of(
+            "gdp", mockBucketConfig,
+            TEST_BUCKET, mockBucketConfig,
+            TEST_BUCKET_NAME, mockBucketConfig
+        );
+        lenient().when(mockS3Config.buckets()).thenReturn(bucketsMap);
+        
+        // Note: With the refactored implementation, S3 clients are created dynamically
+        // No need to inject a default S3 client as it no longer exists
+        
+        // Mock the bucketNameToId map to ensure bucket names are recognized
+        java.lang.reflect.Field bucketNameToIdField = S3Service.class.getDeclaredField("bucketNameToId");
+        bucketNameToIdField.setAccessible(true);
+        java.util.Map<String, String> bucketNameToIdMap = new java.util.concurrent.ConcurrentHashMap<>();
+        bucketNameToIdMap.put(TEST_BUCKET, "gdp");
+        bucketNameToIdMap.put(TEST_BUCKET_NAME, "gdp");
+        bucketNameToIdMap.put("gdp", "gdp");
+        bucketNameToIdField.set(s3Service, bucketNameToIdMap);
     }
 
     @Test
     void testUploadFileWithPath() throws Exception {
         // Given
-        Path testPath = Paths.get("test-file.txt");
+        Path testPath = tempDir.resolve("test-file.txt");
+        Files.write(testPath, TEST_CONTENT.getBytes());
         PutObjectResult putObjectResult = new PutObjectResult();
         when(mockS3Client.putObject(any(PutObjectRequest.class))).thenReturn(putObjectResult);
 
         // When & Then
         assertDoesNotThrow(() -> {
-            String result = s3Service.uploadFile(TEST_KEY, testPath);
+            String result = s3Service.uploadFile(TEST_BUCKET_NAME, TEST_KEY, testPath);
             assertNotNull(result);
         });
 
@@ -79,7 +113,7 @@ public class S3ServiceTest {
 
         // When & Then
         assertDoesNotThrow(() -> {
-            String result = s3Service.uploadFile(TEST_KEY, inputStream, contentLength, contentType);
+            String result = s3Service.uploadFile(TEST_BUCKET_NAME, TEST_KEY, inputStream, contentLength, contentType);
             assertNotNull(result);
         });
 
@@ -87,21 +121,22 @@ public class S3ServiceTest {
     }
 
     @Test
-    void testUploadFileWithBucketId() throws Exception {
+    void testUploadFileWithBucketName() throws Exception {
         // Given
-        Path testPath = Paths.get("test-file.txt");
+        Path testPath = tempDir.resolve("test-file.txt");
+        Files.write(testPath, TEST_CONTENT.getBytes());
         PutObjectResult putObjectResult = new PutObjectResult();
         when(mockS3Client.putObject(any(PutObjectRequest.class))).thenReturn(putObjectResult);
 
         // When & Then
         assertDoesNotThrow(() -> {
-            String result = s3Service.uploadFile(TEST_BUCKET_ID, TEST_KEY, testPath);
+            String result = s3Service.uploadFile(TEST_BUCKET_NAME, TEST_KEY, testPath);
             assertNotNull(result);
         });
     }
 
     @Test
-    void testUploadFileWithBucketIdAndInputStream() throws Exception {
+    void testUploadFileWithBucketNameAndInputStream() throws Exception {
         // Given
         InputStream inputStream = new ByteArrayInputStream(TEST_CONTENT.getBytes());
         long contentLength = TEST_CONTENT.length();
@@ -111,7 +146,7 @@ public class S3ServiceTest {
 
         // When & Then
         assertDoesNotThrow(() -> {
-            String result = s3Service.uploadFile(TEST_BUCKET_ID, TEST_KEY, inputStream, contentLength, contentType);
+            String result = s3Service.uploadFile(TEST_BUCKET_NAME, TEST_KEY, inputStream, contentLength, contentType);
             assertNotNull(result);
         });
     }
@@ -125,7 +160,7 @@ public class S3ServiceTest {
         when(mockS3Client.getObject(any(GetObjectRequest.class))).thenReturn(s3Object);
 
         // When
-        S3Object result = s3Service.downloadFile(TEST_KEY);
+        S3Object result = s3Service.downloadFile(TEST_BUCKET_NAME, TEST_KEY);
 
         // Then
         assertNotNull(result);
@@ -134,7 +169,7 @@ public class S3ServiceTest {
     }
 
     @Test
-    void testDownloadFileWithBucketId() throws Exception {
+    void testDownloadFileWithBucketName() throws Exception {
         // Given
         S3Object s3Object = new S3Object();
         s3Object.setKey(TEST_KEY);
@@ -142,7 +177,7 @@ public class S3ServiceTest {
         when(mockS3Client.getObject(any(GetObjectRequest.class))).thenReturn(s3Object);
 
         // When
-        S3Object result = s3Service.downloadFile(TEST_BUCKET_ID, TEST_KEY);
+        S3Object result = s3Service.downloadFile(TEST_BUCKET_NAME, TEST_KEY);
 
         // Then
         assertNotNull(result);
@@ -152,7 +187,7 @@ public class S3ServiceTest {
     @Test
     void testListFiles() throws Exception {
         // Given
-        ObjectListing objectListing = new ObjectListing();
+        ListObjectsV2Result result = new ListObjectsV2Result();
         S3ObjectSummary summary1 = new S3ObjectSummary();
         summary1.setKey("file1.txt");
         summary1.setETag("etag1");
@@ -167,118 +202,118 @@ public class S3ServiceTest {
         summary2.setLastModified(new Date());
         summary2.setStorageClass("STANDARD");
 
-        objectListing.getObjectSummaries().addAll(Arrays.asList(summary1, summary2));
-        when(mockS3Client.listObjects(any(ListObjectsRequest.class))).thenReturn(objectListing);
+        result.getObjectSummaries().addAll(Arrays.asList(summary1, summary2));
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
 
         // When
-        List<S3FileInfo> result = s3Service.listFiles();
+        List<S3FileInfo> listResult = s3Service.listFilesInBucket(TEST_BUCKET_NAME);
 
         // Then
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("file1.txt", result.get(0).getKey());
-        assertEquals("file2.txt", result.get(1).getKey());
-        verify(mockS3Client).listObjects(any(ListObjectsRequest.class));
+        assertNotNull(listResult);
+        assertEquals(2, listResult.size());
+        assertEquals("file1.txt", listResult.get(0).getKey());
+        assertEquals("file2.txt", listResult.get(1).getKey());
+        verify(mockS3Client).listObjectsV2(any(ListObjectsV2Request.class));
     }
 
     @Test
     void testListFilesWithPrefix() throws Exception {
         // Given
         String prefix = "documents/";
-        ObjectListing objectListing = new ObjectListing();
+        ListObjectsV2Result result = new ListObjectsV2Result();
         S3ObjectSummary summary = new S3ObjectSummary();
         summary.setKey("documents/file.txt");
         summary.setETag("etag");
         summary.setSize(100L);
         summary.setLastModified(new Date());
         summary.setStorageClass("STANDARD");
-        objectListing.getObjectSummaries().add(summary);
-        when(mockS3Client.listObjects(any(ListObjectsRequest.class))).thenReturn(objectListing);
+        result.getObjectSummaries().add(summary);
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
 
         // When
-        List<S3FileInfo> result = s3Service.listFiles(prefix);
+        List<S3FileInfo> listResult = s3Service.listFilesInBucket(TEST_BUCKET_NAME, prefix);
 
         // Then
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("documents/file.txt", result.get(0).getKey());
-        verify(mockS3Client).listObjects(any(ListObjectsRequest.class));
+        assertNotNull(listResult);
+        assertEquals(1, listResult.size());
+        assertEquals("documents/file.txt", listResult.get(0).getKey());
+        verify(mockS3Client).listObjectsV2(any(ListObjectsV2Request.class));
     }
 
     @Test
     void testListFilesInBucket() throws Exception {
         // Given
-        ObjectListing objectListing = new ObjectListing();
+        ListObjectsV2Result result = new ListObjectsV2Result();
         S3ObjectSummary summary = new S3ObjectSummary();
         summary.setKey("bucket-file.txt");
         summary.setETag("etag");
         summary.setSize(100L);
         summary.setLastModified(new Date());
         summary.setStorageClass("STANDARD");
-        objectListing.getObjectSummaries().add(summary);
-        when(mockS3Client.listObjects(any(ListObjectsRequest.class))).thenReturn(objectListing);
+        result.getObjectSummaries().add(summary);
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
 
         // When
-        List<S3FileInfo> result = s3Service.listFilesInBucket(TEST_BUCKET_ID);
+        List<S3FileInfo> listResult = s3Service.listFilesInBucket(TEST_BUCKET_NAME);
 
         // Then
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("bucket-file.txt", result.get(0).getKey());
+        assertNotNull(listResult);
+        assertEquals(1, listResult.size());
+        assertEquals("bucket-file.txt", listResult.get(0).getKey());
     }
 
     @Test
     void testListFileKeys() throws Exception {
         // Given
-        ObjectListing objectListing = new ObjectListing();
+        ListObjectsV2Result result = new ListObjectsV2Result();
         S3ObjectSummary summary1 = new S3ObjectSummary();
-        summary1.setKey("file1.txt");
+        summary1.setKey("key1.txt");
         summary1.setETag("etag1");
         summary1.setSize(100L);
         summary1.setLastModified(new Date());
         summary1.setStorageClass("STANDARD");
 
         S3ObjectSummary summary2 = new S3ObjectSummary();
-        summary2.setKey("file2.txt");
+        summary2.setKey("key2.txt");
         summary2.setETag("etag2");
         summary2.setSize(200L);
         summary2.setLastModified(new Date());
         summary2.setStorageClass("STANDARD");
 
-        objectListing.getObjectSummaries().addAll(Arrays.asList(summary1, summary2));
-        when(mockS3Client.listObjects(any(ListObjectsRequest.class))).thenReturn(objectListing);
+        result.getObjectSummaries().addAll(Arrays.asList(summary1, summary2));
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
 
         // When
-        List<String> result = s3Service.listFileKeys();
+        List<String> listResult = s3Service.listFileKeysInBucket(TEST_BUCKET_NAME);
 
         // Then
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("file1.txt", result.get(0));
-        assertEquals("file2.txt", result.get(1));
-        verify(mockS3Client).listObjects(any(ListObjectsRequest.class));
+        assertNotNull(listResult);
+        assertEquals(2, listResult.size());
+        assertEquals("key1.txt", listResult.get(0));
+        assertEquals("key2.txt", listResult.get(1));
+        verify(mockS3Client).listObjectsV2(any(ListObjectsV2Request.class));
     }
 
     @Test
     void testListFileKeysInBucket() throws Exception {
         // Given
-        ObjectListing objectListing = new ObjectListing();
+        ListObjectsV2Result result = new ListObjectsV2Result();
         S3ObjectSummary summary = new S3ObjectSummary();
         summary.setKey("bucket-file.txt");
         summary.setETag("etag");
         summary.setSize(100L);
         summary.setLastModified(new Date());
         summary.setStorageClass("STANDARD");
-        objectListing.getObjectSummaries().add(summary);
-        when(mockS3Client.listObjects(any(ListObjectsRequest.class))).thenReturn(objectListing);
+        result.getObjectSummaries().add(summary);
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
 
         // When
-        List<String> result = s3Service.listFileKeysInBucket(TEST_BUCKET_ID);
+        List<String> listResult = s3Service.listFileKeysInBucket(TEST_BUCKET_NAME);
 
         // Then
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("bucket-file.txt", result.get(0));
+        assertNotNull(listResult);
+        assertEquals(1, listResult.size());
+        assertEquals("bucket-file.txt", listResult.get(0));
     }
 
     @Test
@@ -287,73 +322,71 @@ public class S3ServiceTest {
         doNothing().when(mockS3Client).deleteObject(any(DeleteObjectRequest.class));
 
         // When & Then
-        assertDoesNotThrow(() -> s3Service.deleteFile(TEST_KEY));
+        assertDoesNotThrow(() -> s3Service.deleteFile(TEST_BUCKET_NAME, TEST_KEY));
         verify(mockS3Client).deleteObject(any(DeleteObjectRequest.class));
     }
 
     @Test
-    void testDeleteFileWithBucketId() throws Exception {
+    void testDeleteFileWithBucketName() throws Exception {
         // Given
         doNothing().when(mockS3Client).deleteObject(any(DeleteObjectRequest.class));
 
         // When & Then
-        assertDoesNotThrow(() -> s3Service.deleteFile(TEST_BUCKET_ID, TEST_KEY));
+        assertDoesNotThrow(() -> s3Service.deleteFile(TEST_BUCKET_NAME, TEST_KEY));
     }
 
     @Test
     void testFileExists() throws Exception {
         // Given
-        ObjectMetadata metadata = new ObjectMetadata();
-        when(mockS3Client.getObjectMetadata(any(GetObjectMetadataRequest.class))).thenReturn(metadata);
+        when(mockS3Client.doesObjectExist(anyString(), anyString())).thenReturn(true);
 
         // When
-        boolean result = s3Service.fileExists(TEST_KEY);
+        boolean result = s3Service.fileExists(TEST_BUCKET_NAME, TEST_KEY);
 
         // Then
         assertTrue(result);
-        verify(mockS3Client).getObjectMetadata(any(GetObjectMetadataRequest.class));
+        verify(mockS3Client).doesObjectExist(anyString(), anyString());
     }
 
     @Test
     void testFileExistsNotFound() throws Exception {
         // Given
-        AmazonServiceException exception = new AmazonServiceException("Not Found");
-        exception.setStatusCode(404);
-        when(mockS3Client.getObjectMetadata(any(GetObjectMetadataRequest.class))).thenThrow(exception);
+        when(mockS3Client.doesObjectExist(anyString(), anyString())).thenReturn(false);
 
         // When
-        boolean result = s3Service.fileExists(TEST_KEY);
+        boolean result = s3Service.fileExists(TEST_BUCKET_NAME, TEST_KEY);
 
         // Then
         assertFalse(result);
-        verify(mockS3Client).getObjectMetadata(any(GetObjectMetadataRequest.class));
+        verify(mockS3Client).doesObjectExist(anyString(), anyString());
     }
 
     @Test
-    void testFileExistsWithBucketId() throws Exception {
+    void testFileExistsWithBucketName() throws Exception {
         // Given
-        ObjectMetadata metadata = new ObjectMetadata();
-        when(mockS3Client.getObjectMetadata(any(GetObjectMetadataRequest.class))).thenReturn(metadata);
+        when(mockS3Client.doesObjectExist(anyString(), anyString())).thenReturn(true);
 
         // When
-        boolean result = s3Service.fileExists(TEST_BUCKET_ID, TEST_KEY);
+        boolean result = s3Service.fileExists(TEST_BUCKET_NAME, TEST_KEY);
 
         // Then
         assertTrue(result);
+        verify(mockS3Client).doesObjectExist(anyString(), anyString());
     }
 
     @Test
     void testGetFileMetadata() throws Exception {
-        // Given
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(100L);
-        metadata.setContentType("text/plain");
-        when(mockS3Client.getObjectMetadata(any(GetObjectMetadataRequest.class))).thenReturn(metadata);
-
-        // When
-        ObjectMetadata result = s3Service.getFileMetadata(TEST_KEY);
-
-        // Then
+        // Arrange
+        ObjectMetadata mockMetadata = mock(ObjectMetadata.class);
+        when(mockMetadata.getContentLength()).thenReturn(100L);
+        when(mockMetadata.getContentType()).thenReturn("text/plain");
+        
+        when(mockS3Client.getObjectMetadata(any(GetObjectMetadataRequest.class))).thenReturn(mockMetadata);
+        
+        // Act
+        ObjectMetadata result = s3Service.getFileMetadata(TEST_BUCKET_NAME, TEST_KEY);
+        
+        // Assert
         assertNotNull(result);
         assertEquals(100L, result.getContentLength());
         assertEquals("text/plain", result.getContentType());
@@ -361,7 +394,7 @@ public class S3ServiceTest {
     }
 
     @Test
-    void testGetFileMetadataWithBucketId() throws Exception {
+    void testGetFileMetadataWithBucketName() throws Exception {
         // Given
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentLength(200L);
@@ -369,7 +402,7 @@ public class S3ServiceTest {
         when(mockS3Client.getObjectMetadata(any(GetObjectMetadataRequest.class))).thenReturn(metadata);
 
         // When
-        ObjectMetadata result = s3Service.getFileMetadata(TEST_BUCKET_ID, TEST_KEY);
+        ObjectMetadata result = s3Service.getFileMetadata(TEST_BUCKET_NAME, TEST_KEY);
 
         // Then
         assertNotNull(result);
@@ -386,12 +419,12 @@ public class S3ServiceTest {
         when(mockS3Client.copyObject(any(CopyObjectRequest.class))).thenReturn(copyResult);
 
         // When & Then
-        assertDoesNotThrow(() -> s3Service.copyFile(sourceKey, destinationKey));
+        assertDoesNotThrow(() -> s3Service.copyFile(TEST_BUCKET_NAME, sourceKey, destinationKey));
         verify(mockS3Client).copyObject(any(CopyObjectRequest.class));
     }
 
     @Test
-    void testCopyFileWithBucketId() throws Exception {
+    void testCopyFileWithBucketName() throws Exception {
         // Given
         String sourceKey = "source/file.txt";
         String destinationKey = "destination/file.txt";
@@ -399,48 +432,36 @@ public class S3ServiceTest {
         when(mockS3Client.copyObject(any(CopyObjectRequest.class))).thenReturn(copyResult);
 
         // When & Then
-        assertDoesNotThrow(() -> s3Service.copyFile(TEST_BUCKET_ID, sourceKey, destinationKey));
+        assertDoesNotThrow(() -> s3Service.copyFile(TEST_BUCKET_NAME, sourceKey, destinationKey));
     }
 
     @Test
     void testCopyFileBetweenBuckets() throws Exception {
         // Given
-        String sourceBucketId = "source-bucket";
-        String destinationBucketId = "destination-bucket";
+        String sourceBucketName = "source-bucket";
+        String destinationBucketName = "destination-bucket";
         String sourceKey = "source/file.txt";
         String destinationKey = "destination/file.txt";
         CopyObjectResult copyResult = new CopyObjectResult();
         when(mockS3Client.copyObject(any(CopyObjectRequest.class))).thenReturn(copyResult);
 
         // When & Then
-        assertDoesNotThrow(() -> s3Service.copyFile(sourceBucketId, sourceKey, destinationBucketId, destinationKey));
+        assertDoesNotThrow(() -> s3Service.copyFile(sourceBucketName, sourceKey, destinationBucketName, destinationKey));
     }
 
-    @Test
-    void testGetFileSize() throws Exception {
-        // Given
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(1024L);
-        when(mockS3Client.getObjectMetadata(any(GetObjectMetadataRequest.class))).thenReturn(metadata);
 
-        // When
-        long result = s3Service.getFileSize(TEST_KEY);
-
-        // Then
-        assertEquals(1024L, result);
-        verify(mockS3Client).getObjectMetadata(any(GetObjectMetadataRequest.class));
-    }
 
     @Test
-    void testUploadFileException() {
+    void testUploadFileException() throws IOException {
         // Given
-        Path testPath = Paths.get("test-file.txt");
-        when(mockS3Client.putObject(any(PutObjectRequest.class)))
+        Path testPath = tempDir.resolve("test-file.txt");
+        Files.write(testPath, TEST_CONTENT.getBytes());
+        lenient().when(mockS3Client.putObject(any(PutObjectRequest.class)))
                 .thenThrow(new RuntimeException("Upload failed"));
 
         // When & Then
         S3Exception exception = assertThrows(S3Exception.class, () -> {
-            s3Service.uploadFile(TEST_KEY, testPath);
+            s3Service.uploadFile(TEST_BUCKET_NAME, TEST_KEY, testPath);
         });
         assertTrue(exception.getMessage().contains("Failed to upload file to S3"));
     }
@@ -453,7 +474,7 @@ public class S3ServiceTest {
 
         // When & Then
         S3Exception exception = assertThrows(S3Exception.class, () -> {
-            s3Service.downloadFile(TEST_KEY);
+            s3Service.downloadFile(TEST_BUCKET_NAME, TEST_KEY);
         });
         assertTrue(exception.getMessage().contains("Failed to download file from S3"));
     }
@@ -461,14 +482,14 @@ public class S3ServiceTest {
     @Test
     void testListFilesException() {
         // Given
-        when(mockS3Client.listObjects(any(ListObjectsRequest.class)))
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
                 .thenThrow(new RuntimeException("List failed"));
 
         // When & Then
         S3Exception exception = assertThrows(S3Exception.class, () -> {
-            s3Service.listFiles();
+            s3Service.listFilesInBucket(TEST_BUCKET_NAME);
         });
-        assertTrue(exception.getMessage().contains("Failed to list files from S3"));
+        assertTrue(exception.getMessage().contains("Failed to list files in bucket"));
     }
 
     @Test
@@ -479,7 +500,7 @@ public class S3ServiceTest {
 
         // When & Then
         S3Exception exception = assertThrows(S3Exception.class, () -> {
-            s3Service.deleteFile(TEST_KEY);
+            s3Service.deleteFile(TEST_BUCKET_NAME, TEST_KEY);
         });
         assertTrue(exception.getMessage().contains("Failed to delete file from S3"));
     }
