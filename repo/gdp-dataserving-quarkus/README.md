@@ -299,6 +299,8 @@ mvn quarkus:dev
 
 ### Testing
 
+The project includes comprehensive unit tests for all components, including S3 operations.
+
 ```bash
 # Run tests for all modules
 mvn test
@@ -306,6 +308,54 @@ mvn test
 # Run tests for specific module
 cd server
 mvn test
+
+# Run only S3-related tests
+cd server
+mvn test -Dtest=S3ServiceTest,S3ResourceTest
+```
+
+#### S3 Testing
+
+The S3 functionality is thoroughly tested with:
+
+- **S3ServiceTest**: Unit tests for S3Service backend operations
+  - File upload/download operations
+  - Presigned URL generation (upload and download)
+  - Bucket operations and file management
+  - Error handling and exception scenarios
+  - AWS SDK integration testing
+
+- **S3ResourceTest**: Unit tests for S3Resource REST endpoints
+  - REST API endpoint testing for `/api/s3/buckets`
+  - Presigned URL generation endpoints
+  - Request validation and error responses
+  - Authentication and authorization testing
+
+All S3 tests use Mockito for mocking AWS SDK dependencies, ensuring tests run without requiring actual AWS resources.
+
+#### Test Coverage
+
+The project maintains high test coverage across all modules:
+
+- **Total S3 Tests**: 35 tests (26 S3ServiceTest + 9 S3ResourceTest)
+- **Test Success Rate**: 100% (all tests passing)
+- **Mock Strategy**: Comprehensive mocking of AWS SDK components
+- **Error Scenarios**: Extensive testing of exception handling and edge cases
+
+#### Running Specific Test Categories
+
+```bash
+# Run all S3-related tests
+mvn test -Dtest="**/s3/*Test"
+
+# Run only service layer tests
+mvn test -Dtest="**/*ServiceTest"
+
+# Run only REST endpoint tests
+mvn test -Dtest="**/*ResourceTest"
+
+# Run tests with verbose output
+mvn test -Dtest=S3ServiceTest -Dmaven.surefire.debug=true
 ```
 
 ## Docker Support

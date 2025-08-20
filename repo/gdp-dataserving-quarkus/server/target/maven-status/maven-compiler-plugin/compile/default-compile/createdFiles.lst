@@ -1,12 +1,17 @@
 com/sc/gdp/dataserving/rest/DataResource$UpdateDataItemRequest.class
 com/sc/gdp/dataserving/rest/DataResource$CreateDataItemRequest.class
 com/sc/gdp/dataserving/rest/DataResource$CountResponse.class
+com/sc/gdp/dataserving/rest/S3Resource$PresignedUrlResponse.class
+com/sc/gdp/dataserving/rest/S3Resource.class
 com/sc/gdp/common/s3/S3Service.class
+com/sc/gdp/dataserving/rest/S3Resource$BucketListResponse.class
 com/sc/gdp/dataserving/repository/DataItemRepository.class
+com/sc/gdp/common/s3/S3Config$BucketConfig.class
 com/sc/gdp/dataserving/graphql/DataGraphQLApi$UpdateDataItemInput.class
 com/sc/gdp/dataserving/graphql/DataGraphQLApi$CreateDataItemInput.class
 com/sc/gdp/common/s3/S3FileInfo.class
 com/sc/gdp/dataserving/rest/DataResource.class
+com/sc/gdp/dataserving/rest/S3Resource$ErrorResponse.class
 com/sc/gdp/dataserving/config/DataSourceConfig.class
 com/sc/gdp/common/s3/S3Config.class
 com/sc/gdp/dataserving/rest/DataResource$UserInfoResponse.class
@@ -20,6 +25,7 @@ com/sc/gdp/dataserving/graphql/DataGraphQLApi.class
 com/sc/gdp/dataserving/rest/DataResource$UpdateStatusRequest.class
 com/sc/gdp/dataserving/config/DataSourceConfig$StarRocksConfig.class
 com/sc/gdp/dataserving/model/DataStatus.class
+com/sc/gdp/dataserving/rest/S3Resource$UploadPresignedUrlRequest.class
 META-INF/panache-archive.marker
 com/sc/gdp/dataserving/service/DataService.class
 com/sc/gdp/common/s3/S3Utils.class

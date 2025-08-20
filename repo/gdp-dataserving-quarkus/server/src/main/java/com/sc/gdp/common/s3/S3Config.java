@@ -3,6 +3,8 @@ package com.sc.gdp.common.s3;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Configuration mapping for S3 settings
@@ -35,7 +37,7 @@ public interface S3Config {
     String region();
 
     /**
-     * S3 bucket name
+     * Default S3 bucket name
      */
     @WithName("bucket-name")
     String bucketName();
@@ -46,6 +48,51 @@ public interface S3Config {
     @WithName("path-style-access")
     @WithDefault("true")
     boolean pathStyleAccess();
+    
+    /**
+     * Additional bucket configurations
+     * Map of bucket-id to BucketConfig
+     */
+    @WithName("buckets")
+    Map<String, BucketConfig> buckets();
+    
+    /**
+     * Configuration for a specific bucket
+     */
+    interface BucketConfig {
+        /**
+         * Bucket name
+         */
+        @WithName("name")
+        String name();
+        
+        /**
+         * Optional endpoint URL specific to this bucket
+         */
+        Optional<String> endpointUrl();
+        
+        /**
+         * Optional region specific to this bucket
+         */
+        @WithDefault("us-east-1")
+        String region();
+        
+        /**
+         * Optional access key specific to this bucket
+         */
+        Optional<String> accessKey();
+        
+        /**
+         * Optional secret key specific to this bucket
+         */
+        Optional<String> secretKey();
+        
+        /**
+         * Whether to use path-style access for this bucket
+         */
+        @WithDefault("true")
+        boolean pathStyleAccess();
+    }
 
     /**
      * Signed URL duration in minutes

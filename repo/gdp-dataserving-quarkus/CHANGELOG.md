@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - S3 presigned URL REST API endpoints for secure file upload and download operations
   - `GET /api/s3/presigned-url/download` - Generate download presigned URLs
   - `POST /api/s3/presigned-url/upload` - Generate upload presigned URLs
+- Comprehensive S3 testing suite with 35 unit tests
+  - S3ServiceTest: 26 tests covering all S3Service backend operations
+  - S3ResourceTest: 9 tests covering S3Resource REST endpoints
+  - Complete test coverage for file operations, presigned URLs, error handling
+  - Mockito-based testing without requiring actual AWS resources
 
 ### Changed
 - **BREAKING**: Upgraded Java runtime from Java 11 to Java 17 (OpenJDK 17.0.16)

@@ -26,20 +26,52 @@ A comprehensive S3 library for handling S3a protocol operations on Isilon storag
 
 ## Configuration
 
+### Single Bucket Configuration
+
 Add the following configuration to your `application.properties`:
 
-```yaml
-s3:
-  endpoint-url: "http://your-isilon-endpoint:9020"
-  access-key: "your-access-key"
-  secret-key: "your-secret-key"
-  region: "us-east-1"
-  bucket-name: "your-bucket-name"
-  path-style-access: true
-  signed-url-duration-minutes: 60
-  connection-timeout-ms: 30000
-  socket-timeout-ms: 30000
-  max-retry-attempts: 3
+```properties
+# Default S3 Configuration
+s3.endpoint-url=http://your-isilon-endpoint:9020
+s3.access-key=your-access-key
+s3.secret-key=your-secret-key
+s3.region=us-east-1
+s3.bucket-name=your-bucket-name
+s3.path-style-access=true
+s3.signed-url-duration-minutes=60
+s3.connection-timeout-ms=30000
+s3.socket-timeout-ms=30000
+s3.max-retry-attempts=3
+```
+
+### Multiple Bucket Configuration
+
+To configure multiple S3 buckets, use the pattern `s3.buckets.[bucket-id].[property]`:
+
+```properties
+# Default bucket configuration (required)
+s3.endpoint-url=http://localhost:9000
+s3.access-key=minioadmin
+s3.secret-key=minioadmin
+s3.bucket-name=gdp-dataserving
+s3.region=us-east-1
+s3.path-style-access=true
+
+# Reports bucket with different credentials
+s3.buckets.reports.name=gdp-reports
+s3.buckets.reports.access-key=reports-user
+s3.buckets.reports.secret-key=reports-password
+
+# Archives bucket on AWS S3
+s3.buckets.archives.name=gdp-archives
+s3.buckets.archives.endpoint-url=https://s3.amazonaws.com
+s3.buckets.archives.region=us-west-2
+s3.buckets.archives.access-key=AKIAIOSFODNN7EXAMPLE
+s3.buckets.archives.secret-key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+s3.buckets.archives.path-style-access=false
+
+# Backup bucket (inherits most settings from default)
+s3.buckets.backup.name=gdp-backup
 ```
 
 ### Configuration Properties
@@ -157,6 +189,75 @@ long fileSize = s3Service.getFileSize("documents/report.pdf");
 ```java
 // Copy a file
 s3Service.copyFile("documents/report.pdf", "backup/report-backup.pdf");
+```
+
+## Multi-Bucket Usage
+
+When multiple buckets are configured, you can specify which bucket to use for operations by providing a bucket ID.
+
+### Multi-Bucket File Operations
+
+```java
+@Inject
+S3Service s3Service;
+
+// Upload to specific bucket
+String fileUrl = s3Service.uploadFile("reports", "monthly/report.pdf", Paths.get("/local/path/report.pdf"));
+
+// Download from specific bucket
+s3Service.downloadFile("archives", "2023/data.csv", Paths.get("/local/path/data.csv"));
+
+// Check if file exists in specific bucket
+boolean exists = s3Service.fileExists("backup", "documents/report.pdf");
+
+// Delete from specific bucket
+s3Service.deleteFile("reports", "old/report.pdf");
+```
+
+### Multi-Bucket Signed URLs
+
+```java
+// Generate download URL for specific bucket
+URL downloadUrl = s3Service.generateDownloadSignedUrl("reports", "monthly/report.pdf", Duration.ofHours(1));
+
+// Generate upload URL for specific bucket
+URL uploadUrl = s3Service.generateUploadSignedUrl("archives", "2024/data.csv", "text/csv", Duration.ofMinutes(30));
+
+// Using default bucket (same as before)
+URL defaultUrl = s3Service.generateDownloadSignedUrl("documents/report.pdf");
+```
+
+### Multi-Bucket File Listing
+
+```java
+// List files in specific bucket
+List<S3FileInfo> reportsFiles = s3Service.listFiles("reports", "monthly/");
+
+// List all files in specific bucket
+List<S3FileInfo> allArchives = s3Service.listFiles("archives");
+
+// Get file keys from specific bucket
+List<String> backupKeys = s3Service.listFileKeys("backup", "documents/");
+```
+
+### REST API Usage
+
+The S3 REST endpoints support bucket selection:
+
+```bash
+# List available buckets
+curl -X GET "http://localhost:8082/s3/buckets"
+
+# Generate download URL for default bucket
+curl -X GET "http://localhost:8082/s3/download/presigned?key=file.pdf"
+
+# Generate download URL for specific bucket
+curl -X GET "http://localhost:8082/s3/download/presigned?key=file.pdf&bucketId=reports"
+
+# Generate upload URL for specific bucket
+curl -X POST "http://localhost:8082/s3/upload/presigned" \
+  -H "Content-Type: application/json" \
+  -d '{"key": "new-file.pdf", "contentType": "application/pdf", "bucketId": "archives"}'
 ```
 
 ### Utility Functions

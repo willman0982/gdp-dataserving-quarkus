@@ -175,12 +175,7 @@ public class S3Utils {
      * @return S3FileInfo
      */
     public static S3FileInfo createS3FileInfo(String key, String etag, long size, Instant lastModified, String storageClass) {
-        S3FileInfo fileInfo = new S3FileInfo();
-        fileInfo.setKey(key);
-        fileInfo.setEtag(etag);
-        fileInfo.setSize(size);
-        fileInfo.setLastModified(lastModified);
-        fileInfo.setStorageClass(storageClass);
+        S3FileInfo fileInfo = new S3FileInfo(key, etag, size, lastModified, storageClass, null, null, null);
         return fileInfo;
     }
 
