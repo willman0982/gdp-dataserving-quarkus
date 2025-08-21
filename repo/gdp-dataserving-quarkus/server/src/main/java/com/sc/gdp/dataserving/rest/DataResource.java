@@ -11,6 +11,13 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +28,9 @@ import java.util.Optional;
 @Path("/api/data")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Data Management", description = "CRUD operations for data items")
+@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "oidc")
 public class DataResource {
 
     @Inject
@@ -36,6 +46,11 @@ public class DataResource {
      * Get all data items
      */
     @GET
+    @Operation(summary = "Get all data items", description = "Retrieve a list of all data items")
+    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "oidc")
+    @APIResponse(responseCode = "200", description = "Successfully retrieved data items",
+                content = @Content(mediaType = MediaType.APPLICATION_JSON))
     @RolesAllowed({"user", "admin"})
     public Response getAllDataItems() {
         List<DataItem> items = dataSourceService.getAllDataItems();
@@ -47,8 +62,14 @@ public class DataResource {
      */
     @GET
     @Path("/{id}")
+    @Operation(summary = "Get data item by ID", description = "Retrieve a specific data item by its ID")
+    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "oidc")
+    @APIResponse(responseCode = "200", description = "Successfully retrieved data item",
+                content = @Content(mediaType = MediaType.APPLICATION_JSON))
+    @APIResponse(responseCode = "404", description = "Data item not found")
     @RolesAllowed({"user", "admin"})
-    public Response getDataItemById(@PathParam("id") Long id) {
+    public Response getDataItemById(@Parameter(description = "Data item ID", required = true) @PathParam("id") Long id) {
         Optional<DataItem> item = dataSourceService.getDataItemById(id);
         if (item.isPresent()) {
             return Response.ok(item.get()).build();
@@ -96,8 +117,14 @@ public class DataResource {
      * Create a new data item
      */
     @POST
+    @Operation(summary = "Create new data item", description = "Create a new data item (admin only)")
+    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "oidc")
+    @APIResponse(responseCode = "201", description = "Data item created successfully",
+                content = @Content(mediaType = MediaType.APPLICATION_JSON))
+    @APIResponse(responseCode = "400", description = "Invalid request data")
     @RolesAllowed({"admin"})
-    public Response createDataItem(CreateDataItemRequest request) {
+    public Response createDataItem(@Parameter(description = "Data item creation request", required = true) CreateDataItemRequest request) {
         if (request.getName() == null || request.getName().trim().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Name is required")

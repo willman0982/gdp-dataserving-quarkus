@@ -20,6 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.net.URL;
@@ -33,6 +34,8 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "S3 Operations", description = "File management operations using S3-compatible storage")
+@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "oidc")
 public class S3Resource {
 
     private static final Logger logger = Logger.getLogger(S3Resource.class.getName());
@@ -47,6 +50,8 @@ public class S3Resource {
     @GET
     @Path("/buckets")
     @Operation(summary = "List all S3 buckets", description = "Retrieve a list of all available S3 buckets")
+    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "oidc")
     @APIResponse(responseCode = "200", description = "Successfully retrieved bucket list",
                 content = @Content(mediaType = MediaType.APPLICATION_JSON,
                                  schema = @Schema(implementation = BucketListResponse.class)))
@@ -79,6 +84,8 @@ public class S3Resource {
     @Operation(summary = "Generate download presigned URL", 
                description = "Generate a temporary presigned URL for downloading a file from S3 storage. " +
                            "Supports both 'key + bucketName' parameters and full S3 paths like 's3a://bucket/key'.")
+    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "oidc")
     @APIResponse(responseCode = "200", description = "Successfully generated presigned URL",
                 content = @Content(mediaType = MediaType.APPLICATION_JSON,
                                  schema = @Schema(implementation = PresignedUrlResponse.class)))
@@ -160,6 +167,8 @@ public class S3Resource {
     @Operation(summary = "Generate upload presigned URL", 
                description = "Generate a temporary presigned URL for uploading a file to S3 storage. " +
                            "Supports both 'key + bucketId' parameters and full S3 paths like 's3a://bucket/key'.")
+    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "oidc")
     @APIResponse(responseCode = "200", description = "Successfully generated presigned URL",
                 content = @Content(mediaType = MediaType.APPLICATION_JSON,
                                  schema = @Schema(implementation = PresignedUrlResponse.class)))
